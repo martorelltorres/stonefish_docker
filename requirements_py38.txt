@@ -1,0 +1,4 @@
+debugpy
+opencv-contrib-python
+matplotlib
+GitPython==3.1.42

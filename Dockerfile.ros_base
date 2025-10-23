@@ -1,0 +1,191 @@
+# Base ROS Noetic image with GPU support and development tools
+FROM mikweeh/ros:noetic-desktop-full@sha256:7dbfb9576d8e6d226c31e06129a82aaab8702695f38eca2116918cb9b9308797
+
+# Set build-time arguments for user and group IDs
+ARG UID=1000
+ARG GID=1000
+
+# Set environment variables for ROS development
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Etc/UTC \
+    ROS_WORKSPACE=/home/rosuser/repo/catkin_ws \
+    QT_X11_NO_MITSHM=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Working directory
+WORKDIR /home/rosuser
+
+# Install system dependencies for ROS development and GPU support
+RUN apt-get update && apt-get install -y \
+    # Python development tools
+    python3-pip \
+    python3-dev \
+    # Tkinter support for matplotlib GUI backends
+    python3-tk \
+    tcl-dev \
+    tk-dev \
+    # Additional Python GUI libraries
+    libtcl8.6 \
+    libtk8.6 \
+    tk \
+    # X11 and Qt libraries for GUI applications
+    libx11-xcb1 libxcb1 libxcb-glx0 \
+    libxcb-keysyms1 libxcb-image0 libxcb-shm0 libxcb-icccm4 \
+    libxcb-sync1 libxcb-xfixes0 libxcb-shape0 libxcb-randr0 \
+    libxcb-render-util0 libxcb-render0 libxcb-xinerama0 \
+    libxcb-xkb1 libxkbcommon-x11-0 \
+    libsm6 libgl1-mesa-glx qt5-default \
+    # X11 forwarding utilities
+    x11-xserver-utils xauth x11-apps \
+    # Development tools
+    git vim nano \
+    build-essential \
+    # Graphics and vision libraries
+    libgl1-mesa-glx libglib2.0-0 \
+    # Network utilities
+    nmap \
+    ntpdate \
+    # PDF viewer for TF tree visualization
+    evince \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install COLA2 extra dependencies
+RUN apt-get update && apt-get install -y \
+    ros-noetic-joy \
+    lm-sensors \
+    lcov \
+    python3-ruamel.yaml \
+    python-is-python3 \
+    python3-wstool \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build and install cola2_lib (must be installed before Stonefish)
+RUN cd /tmp && \
+    git clone https://bitbucket.org/iquarobotics/cola2_lib.git && \
+    cd cola2_lib && \
+    mkdir build && \
+    cd build && \
+    cmake .. && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd / && \
+    rm -rf /tmp/cola2_lib
+
+# Install Stonefish dependencies and build from source
+RUN apt-get update && apt-get install -y \
+    libglm-dev \
+    libsdl2-dev \
+    libfreetype6-dev \
+    cmake \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build and install Stonefish
+RUN cd /tmp && \
+    git clone https://github.com/patrykcieslak/stonefish.git && \
+    cd stonefish && \
+    mkdir build && \
+    cd build && \
+    cmake .. && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd / && \
+    rm -rf /tmp/stonefish
+
+# Install catkin-tools for workspace management
+RUN apt-get update && apt-get install -y \
+    python3-catkin-tools \
+    python3-osrf-pycommon \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install rosbridge for web/external communication
+RUN apt-get update && apt-get install -y \
+    ros-noetic-rosbridge-suite \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Python requirements
+COPY requirements_py38.txt /tmp/requirements_py38.txt
+
+# Create user with specified UID/GID
+RUN if getent group $GID >/dev/null; then \
+        existing_group=$(getent group $GID | cut -d: -f1); \
+        useradd -m -u $UID -g $existing_group -s /bin/bash rosuser; \
+    else \
+        groupadd -g $GID rosuser && \
+        useradd -m -u $UID -g $GID -s /bin/bash rosuser; \
+    fi
+
+# Setup home directory ownership
+# Note: repo/ will be bind-mounted at runtime from docker-compose
+# Note: catkin_ws/ is created by entrypoint script on first run
+# Note: dataset/ is created automatically by Docker bind mount
+# Setup home directory (repo will be bind-mounted at runtime)
+RUN chown -R $UID:$GID /home/rosuser
+
+# Create Xauthority file for X11 forwarding
+RUN touch /tmp/.docker.xauth && \
+    chmod 777 /tmp/.docker.xauth && \
+    chown $UID:$GID /tmp/.docker.xauth
+
+# Switch to non-root user
+USER rosuser
+
+# Install Python dependencies
+RUN python3 -m pip install --user -r /tmp/requirements_py38.txt
+
+# Copy bash aliases configuration
+COPY .bash_aliases /home/rosuser/.bash_aliases
+
+# Setup ROS environment in bashrc
+RUN echo "# ROS Environment Setup" >> ~/.bashrc && \
+    echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc && \
+    echo "" >> ~/.bashrc && \
+    echo "# Source catkin workspace if available" >> ~/.bashrc && \
+    echo "if [ -f \$HOME/repo/catkin_ws/devel/setup.bash ]; then" \
+>> ~/.bashrc && \
+    echo "    source \$HOME/repo/catkin_ws/devel/setup.bash" \
+>> ~/.bashrc && \
+    echo "elif [ -f \$HOME/catkin_ws/devel/setup.bash ]; then" \
+>> ~/.bashrc && \
+    echo "    source \$HOME/catkin_ws/devel/setup.bash" \
+>> ~/.bashrc && \
+    echo "fi" >> ~/.bashrc && \
+    echo "" >> ~/.bashrc && \
+    echo "# Source bash aliases" >> ~/.bashrc && \
+    echo "if [ -f ~/.bash_aliases ]; then" >> ~/.bashrc && \
+    echo "    . ~/.bash_aliases" >> ~/.bashrc && \
+    echo "fi" >> ~/.bashrc && \
+    echo "" >> ~/.bashrc && \
+    echo "# Export additional paths" >> ~/.bashrc && \
+    echo "export PATH=\$PATH:\$HOME/.local/bin" >> ~/.bashrc && \
+    echo "export MPLBACKEND=TkAgg" >> ~/.bashrc && \
+    echo "" >> ~/.bashrc && \
+    echo "# ROS Configuration" >> ~/.bashrc && \
+    echo "export ROS_MASTER_URI=http://localhost:11311" >> ~/.bashrc && \
+    echo "export ROS_HOSTNAME=localhost" >> ~/.bashrc
+
+# Verify tkinter and matplotlib installations
+RUN python3 -c "import tkinter; \
+print('Tkinter installed successfully')" && \
+    python3 -c "import matplotlib; matplotlib.use('TkAgg'); \
+print(f'Matplotlib backend: {matplotlib.get_backend()}')"
+
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+USER root
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+USER rosuser
+
+# Set working directory to home (repo will be bind-mounted here)
+WORKDIR /home/rosuser/repo
+
+# Set entrypoint
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["/bin/bash"]

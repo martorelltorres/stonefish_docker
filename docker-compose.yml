@@ -1,0 +1,42 @@
+services:
+  ros-dev:
+    container_name: ${PROJECT_NAME}-ros
+    build:
+      context: .
+      dockerfile: Dockerfile.ros_base
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    image: ros-baseimage-02
+    runtime: nvidia
+    environment:
+      - DISPLAY=$CONTAINER_DISPLAY
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=/home/rosuser/.Xauthority
+    volumes:
+      - ./:/home/rosuser/repo
+      - ${DATASET}:/home/rosuser/repo/dataset:rw
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY:-/run/user/1000/gdm/Xauthority}:/home/rosuser/.Xauthority:rw
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    ports:
+      - "${DEBUG_PORT:-5678}:5678"
+    networks:
+      app-network:
+        aliases:
+          - ros-container
+    tty: true
+    stdin_open: true
+    command: bash -c "source /opt/ros/noetic/setup.bash && exec bash"
+
+networks:
+  app-network:
+    name: ${PROJECT_NAME}-app-network
+    driver: bridge
+    attachable: true
+
