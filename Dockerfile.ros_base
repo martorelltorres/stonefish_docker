@@ -64,8 +64,9 @@ RUN apt-get update && apt-get install -y \
 
 # Build and install cola2_lib (must be installed before Stonefish)
 RUN cd /tmp && \
-    git clone https://bitbucket.org/iquarobotics/cola2_lib.git && \
+    git clone https://github.com/srv/cola2_lib.git && \
     cd cola2_lib && \
+    git checkout v1.3 && \
     mkdir build && \
     cd build && \
     cmake .. && \
@@ -73,7 +74,6 @@ RUN cd /tmp && \
     make install && \
     ldconfig && \
     cd / && \
-    rm -rf /tmp/cola2_lib
 
 # Install Stonefish dependencies and build from source
 RUN apt-get update && apt-get install -y \
@@ -86,8 +86,9 @@ RUN apt-get update && apt-get install -y \
 
 # Build and install Stonefish
 RUN cd /tmp && \
-    git clone https://github.com/patrykcieslak/stonefish.git && \
+    git clone https://github.com/srv/stonefish.git && \
     cd stonefish && \
+    git checkout v1.3 && \
     mkdir build && \
     cd build && \
     cmake .. && \
@@ -95,7 +96,6 @@ RUN cd /tmp && \
     make install && \
     ldconfig && \
     cd / && \
-    rm -rf /tmp/stonefish
 
 # Install catkin-tools for workspace management
 RUN apt-get update && apt-get install -y \
