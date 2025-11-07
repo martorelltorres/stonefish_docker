@@ -73,7 +73,8 @@ RUN cd /tmp && \
     make -j$(nproc) && \
     make install && \
     ldconfig && \
-    cd / && \
+    cd / 
+
 
 # Install Stonefish dependencies and build from source
 RUN apt-get update && apt-get install -y \
@@ -95,7 +96,8 @@ RUN cd /tmp && \
     make -j$(nproc) && \
     make install && \
     ldconfig && \
-    cd / && \
+    cd / 
+
 
 # Install catkin-tools for workspace management
 RUN apt-get update && apt-get install -y \
@@ -165,7 +167,7 @@ RUN echo "# ROS Environment Setup" >> ~/.bashrc && \
     echo "" >> ~/.bashrc && \
     echo "# Export additional paths" >> ~/.bashrc && \
     echo "export PATH=\$PATH:\$HOME/.local/bin" >> ~/.bashrc && \
-    echo "export MPLBACKEND=TkAgg" >> ~/.bashrc && \
+    echo "export MPLBACKEND=TkAgg" >> ~/.bashgrm_rc && \
     echo "" >> ~/.bashrc && \
     echo "# ROS Configuration" >> ~/.bashrc && \
     echo "export ROS_MASTER_URI=http://localhost:11311" >> ~/.bashrc && \
