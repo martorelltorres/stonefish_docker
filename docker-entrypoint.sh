@@ -37,8 +37,10 @@ echo "────────────────────────�
 
 # Clone cola2_msgs
 echo "Cloning cola2_msgs (branch: v1.3)..."
-if git https://github.com/srv/cola2_msgs.git 2>/dev/null; then
-    cd cola2_msgs && git checkout v1.3 && cd ..
+if git clone https://github.com/srv/cola2_msgs.git 2>/dev/null; then
+    cd cola2_msgs 
+    git checkout v1.3 
+    cd ..
 else
     echo "Warning: cola2_msgs clone failed. Skipping..."
 fi
@@ -127,6 +129,8 @@ else
     echo "Warning: cola2_stonefish clone failed. Skipping..."
 fi
 
+
+
 # Build the workspace
 cd "$CATKIN_WS"
 echo ""
@@ -152,7 +156,6 @@ else
     echo "════════════════════════════════════════════════════════════════"
     echo ""
 fi
-
 
 # Source ROS environment
 source /opt/ros/noetic/setup.bash
