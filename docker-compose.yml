@@ -13,6 +13,7 @@ services:
       - DISPLAY=$CONTAINER_DISPLAY
       - QT_X11_NO_MITSHM=1
       - XAUTHORITY=/home/rosuser/.Xauthority
+      - NVIDIA_DRIVER_CAPABILITIES=all
     volumes:
       - ./:/home/rosuser/repo
       - ${DATASET}:/home/rosuser/repo/dataset:rw
